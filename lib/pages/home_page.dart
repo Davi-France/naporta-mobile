@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/database/app_database.dart';
 import '../core/models/order.dart';
+import '../core/services/order_api_service.dart';
+import 'new_order_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,17 +12,18 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final ScrollController _scrollController = ScrollController();
   final List<Order> _orders = [];
   bool _isLoading = false;
+  bool _hasError = false;
+  final OrderApiService _apiService = OrderApiService();
+  final ScrollController _scrollController = ScrollController();
+  int _page = 1;
   bool _hasMore = true;
-  int _currentPage = 0;
-  final int _itemsPerPage = 10;
 
   @override
   void initState() {
     super.initState();
-    _initDatabase();
+    _initApp();
     _scrollController.addListener(_onScroll);
   }
 
@@ -30,137 +33,209 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  Future<void> _initDatabase() async {
+  Future<void> _initApp() async {
     await AppDatabase.instance.init();
-    await _loadMoreOrders();
+    await _loadOrders();
   }
 
-  Future<void> _loadMoreOrders() async {
+  Future<void> _loadOrders() async {
     if (_isLoading || !_hasMore) return;
 
-    setState(() => _isLoading = true);
-
-    // Simula delay de rede
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    final newOrders = AppDatabase.instance.getOrders(
-      offset: _currentPage * _itemsPerPage,
-      limit: _itemsPerPage,
-    );
-
-    if (newOrders.isEmpty) {
-      setState(() {
-        _hasMore = false;
-        _isLoading = false;
-      });
-      return;
-    }
-
     setState(() {
-      _orders.addAll(newOrders);
-      _currentPage++;
-      _isLoading = false;
+      _isLoading = true;
+      _hasError = false;
     });
+
+    try {
+      // Tenta API primeiro
+      final apiOrders = await _apiService.fetchOrders(page: _page);
+      
+      if (apiOrders.isEmpty) {
+        _hasMore = false;
+      } else {
+        // Converte e salva localmente
+        final orders = apiOrders.map(_convertApiOrder).toList();
+        await _saveToLocalDatabase(orders);
+        
+        setState(() {
+          _orders.addAll(orders);
+          _page++;
+        });
+      }
+    } catch (e) {
+      print('API Error: $e');
+      // Fallback para dados locais
+      final localOrders = AppDatabase.instance.getOrders(offset: _orders.length);
+      
+      if (localOrders.isEmpty && _orders.isEmpty) {
+        setState(() => _hasError = true);
+      } else {
+        setState(() => _orders.addAll(localOrders));
+        _hasMore = false;
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Order _convertApiOrder(OrderApiModel apiOrder) {
+    return Order(
+      code: 'PED-${apiOrder.id.toString().padLeft(3, '0')}',
+      expectedDelivery: _generateDeliveryDate(apiOrder.id),
+      pickupAddress: 'Rua ${apiOrder.title.split(' ').first}, 100',
+      pickupLat: -23.5505,
+      pickupLng: -46.6333,
+      deliveryAddress: 'Av. ${apiOrder.title.split(' ').last}, 500',
+      deliveryLat: -23.5616,
+      deliveryLng: -46.6559,
+      customerName: 'Cliente ${apiOrder.userId}',
+      phone: '(11) 9${apiOrder.id}${apiOrder.id}${apiOrder.id}${apiOrder.id}-${apiOrder.id}${apiOrder.id}${apiOrder.id}${apiOrder.id}',
+      email: 'cliente${apiOrder.userId}@email.com',
+    );
+  }
+
+  String _generateDeliveryDate(int id) {
+    final days = id % 30 + 1;
+    final date = DateTime.now().add(Duration(days: days));
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _saveToLocalDatabase(List<Order> orders) async {
+    for (var order in orders) {
+      await AppDatabase.instance.addOrder(order);
+    }
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels ==
-        _scrollController.position.maxScrollExtent) {
-      _loadMoreOrders();
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      _loadOrders();
     }
   }
 
-  Future<void> _refreshOrders() async {
+  Future<void> _refresh() async {
     setState(() {
       _orders.clear();
-      _currentPage = 0;
+      _page = 1;
       _hasMore = true;
-      _isLoading = false;
     });
-    await _loadMoreOrders();
+    await _loadOrders();
+  }
+
+  Future<void> _createNewOrder() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NewOrderPage()),
+    );
+    
+    if (result != null && result is Order) {
+      // Adiciona o novo pedido na lista
+      setState(() {
+        _orders.insert(0, result);
+      });
+      
+      // Mostra mensagem de sucesso
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pedido ${result.code} criado com sucesso!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      backgroundColor: const Color(0xffF5F5F5),
       body: Column(
         children: [
-          // HEADER
+          // HEADER - 18% da tela
           Container(
-            height: MediaQuery.of(context).size.height * 0.18,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF6984A),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: 8,
-                  color: Colors.black26,
-                  offset: Offset(0, 3),
-                )
-              ],
+            height: screenHeight * 0.18,
+            color: const Color(0xFFF6984A),
+            padding: const EdgeInsets.only(
+              top: 50,
+              left: 20,
+              right: 20,
+              bottom: 16,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(height: 30),
+                // Logo/Ícone + Título no canto esquerdo
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.local_shipping, color: Colors.white, size: 28),
-                        SizedBox(width: 12),
-                        Text(
-                          "Meus pedidos",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                    const Icon(
+                      Icons.local_shipping,
+                      color: Colors.white,
+                      size: 32,
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        // TODO: Implementar criação de novo pedido
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Funcionalidade em desenvolvimento'),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Meus Pedidos',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFFF6984A),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                      ),
-                      child: const Text(
-                        "Novo pedido",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                // Botão "Novo pedido" no canto direito
+                ElevatedButton(
+                  onPressed: _createNewOrder,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFFF6984A),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, color: Colors.white, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${AppDatabase.instance.totalOrders} pedidos encontrados',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
+                  child: const Text(
+                    'Novo pedido',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Contador de pedidos
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            color: const Color(0xFFF5F5F5),
+            child: Row(
+              children: [
+                Icon(
+                  _hasError ? Icons.warning : Icons.info_outline,
+                  color: _hasError ? Colors.orange : const Color(0xFFF6984A),
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _hasError && _orders.isEmpty
+                      ? 'Sem conexão - Dados locais'
+                      : '${_orders.length} pedidos encontrados',
+                  style: TextStyle(
+                    color: _hasError ? Colors.orange : const Color(0xFF666666),
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -169,133 +244,232 @@ class _HomePageState extends State<HomePage> {
 
           // LISTA DE PEDIDOS
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _refreshOrders,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _orders.isEmpty && !_isLoading
-                    ? const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.inbox, size: 64, color: Colors.grey),
-                            SizedBox(height: 16),
-                            Text(
-                              'Nenhum pedido encontrado',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        controller: _scrollController,
-                        itemCount: _orders.length + (_hasMore ? 1 : 0),
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          if (index == _orders.length) {
-                            return _buildLoadingIndicator();
-                          }
-
-                          final order = _orders[index];
-                          return _buildOrderCard(order, context);
-                        },
-                      ),
-              ),
-            ),
+            child: _buildOrderList(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLoadingIndicator() {
+  Widget _buildOrderList() {
+    if (_hasError && _orders.isEmpty) {
+      return _buildErrorState();
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      color: const Color(0xFFF6984A),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: _orders.isEmpty && _isLoading
+            ? _buildLoadingState()
+            : ListView.builder(
+                controller: _scrollController,
+                itemCount: _orders.length + (_hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == _orders.length) {
+                    return _buildLoadingMore();
+                  }
+                  return _buildOrderItem(_orders[index]);
+                },
+              ),
+      ),
+    );
+  }
+
+  Widget _buildOrderItem(Order order) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.pushNamed(context, '/details', arguments: order),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6984A).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.local_shipping,
+                    color: Color(0xFFF6984A),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.code,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Previsão: ${order.expectedDelivery}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF666666),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        order.deliveryAddress,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF888888),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  color: Color(0xFFCCCCCC),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 16,
+                      color: Colors.grey[200],
+                      margin: const EdgeInsets.only(bottom: 8),
+                    ),
+                    Container(
+                      width: 180,
+                      height: 12,
+                      color: Colors.grey[200],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingMore() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: _isLoading
             ? const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF6984A)),
+                valueColor: AlwaysStoppedAnimation(Color(0xFFF6984A)),
               )
-            : const Text('Fim dos pedidos'),
+            : const Text(
+                'Todos os pedidos carregados',
+                style: TextStyle(
+                  color: Color(0xFF888888),
+                  fontSize: 12,
+                ),
+              ),
       ),
     );
   }
 
-  Widget _buildOrderCard(Order order, BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pushNamed(
-        context,
-        '/details',
-        arguments: order,
-      ),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 6,
-              color: Colors.black12,
-              offset: Offset(0, 3),
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.wifi_off,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Sem conexão com a internet',
+            style: TextStyle(
+              color: Color(0xFF666666),
+              fontSize: 16,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6984A).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.local_shipping,
-                color: Color(0xFFF6984A),
-              ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Conecte-se para carregar os pedidos',
+            style: TextStyle(
+              color: Color(0xFF888888),
+              fontSize: 14,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    order.code,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF555555),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "Previsão de entrega em ${order.expectedDelivery}",
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    order.deliveryAddress,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    maxLines: 1,
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _refresh,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF6984A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: Colors.grey,
-            ),
-          ],
-        ),
+            child: const Text('Tentar novamente'),
+          ),
+        ],
       ),
     );
   }
