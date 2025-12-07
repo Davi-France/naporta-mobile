@@ -16,8 +16,7 @@ class AppDatabase {
         await _seedData();
       }
     } catch (e) {
-      print('Erro ao inicializar banco de dados: $e');
-      // Tenta criar o box novamente
+      print('erro ao inicializar o banco: $e');
       _box = await Hive.openBox<Order>(_boxName);
     }
   }
@@ -27,7 +26,6 @@ class AppDatabase {
     
     final allOrders = _box!.values.toList();
     
-    // Paginação para scroll infinito
     if (offset >= allOrders.length) return [];
     
     final end = offset + limit;
@@ -51,13 +49,6 @@ class AppDatabase {
     await _box?.add(order);
   }
 
-  Future<void> updateOrder(int key, Order order) async {
-    await _box?.put(key, order);
-  }
-
-  Future<void> deleteOrder(int key) async {
-    await _box?.delete(key);
-  }
 
   Future<void> clearAll() async {
     await _box?.clear();
@@ -65,12 +56,14 @@ class AppDatabase {
 
   int get totalOrders => _box?.length ?? 0;
 
+
+//pra testar eu ja setei alguns dados de pedidos
   Future<void> _seedData() async {
-    // Dados mais completos para teste
     final orders = [
       Order(
         code: 'PED-001',
         expectedDelivery: '02/03 às 13:30',
+        pickupDate: "01/01/2025",
         pickupAddress: 'Rua das Flores, 123 - Centro',
         pickupLat: -23.55052,
         pickupLng: -46.633308,
@@ -83,7 +76,8 @@ class AppDatabase {
       ),
       Order(
         code: 'PED-002',
-        expectedDelivery: '03/03 às 15:00',
+        expectedDelivery: '03/03 as 15:00',
+        pickupDate: "01/01/2025 as 15:00",
         pickupAddress: 'Rua Augusta, 1000 - Consolação',
         pickupLat: -23.55111,
         pickupLng: -46.65770,
@@ -96,7 +90,8 @@ class AppDatabase {
       ),
       Order(
         code: 'PED-003',
-        expectedDelivery: '04/03 às 10:00',
+        expectedDelivery: '04/03/2025 às 10:00',
+         pickupDate: "01/01/2025 as 15:00",
         pickupAddress: 'Av. Rebouças, 3000 - Pinheiros',
         pickupLat: -23.55944,
         pickupLng: -46.69111,
@@ -107,11 +102,11 @@ class AppDatabase {
         phone: '11 97777-7777',
         email: 'pedro@example.com',
       ),
-      // Adicione mais pedidos para testar scroll infinito
       for (int i = 4; i <= 20; i++)
         Order(
           code: 'PED-${i.toString().padLeft(3, '0')}',
           expectedDelivery: '${i+2}/03 às ${9 + i % 8}:${i % 2 == 0 ? '00' : '30'}',
+          pickupDate: "01/01/2025 as 15:00",
           pickupAddress: 'Rua Exemplo, $i${i}${i} - Bairro ${i}',
           pickupLat: -23.55052 + (i * 0.001),
           pickupLng: -46.633308 + (i * 0.001),

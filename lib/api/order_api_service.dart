@@ -1,4 +1,3 @@
-// lib/core/api/order_api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -56,33 +55,6 @@ class OrderApiService {
     }
   }
 
-  Future<void> updateOrder(int id, OrderApiModel order) async {
-    final response = await _client.put(
-      Uri.parse('$_baseUrl/posts/$id'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(order.toJson()),
-    );
-
-    if (response.statusCode != 200) {
-      throw ApiException(
-        message: 'Falha ao atualizar pedido',
-        statusCode: response.statusCode,
-      );
-    }
-  }
-
-  Future<void> deleteOrder(int id) async {
-    final response = await _client.delete(
-      Uri.parse('$_baseUrl/posts/$id'),
-    );
-
-    if (response.statusCode != 200) {
-      throw ApiException(
-        message: 'Falha ao deletar pedido',
-        statusCode: response.statusCode,
-      );
-    }
-  }
 }
 
 class ApiException implements Exception {
@@ -95,7 +67,6 @@ class ApiException implements Exception {
   String toString() => 'ApiException: $message${statusCode != null ? ' ($statusCode)' : ''}';
 }
 
-// Model para a API
 class OrderApiModel {
   final int id;
   final String title;
@@ -127,7 +98,6 @@ class OrderApiModel {
     };
   }
 
-  // Converter para sua Order local
   Order toLocalOrder() {
     return Order(
       code: 'PED-${id.toString().padLeft(3, '0')}',

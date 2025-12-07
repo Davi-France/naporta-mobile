@@ -1,7 +1,6 @@
 import 'package:hive/hive.dart';
 
-part 'order.g.dart'; // necessário para gerar o adapter
-
+part 'order.g.dart';
 @HiveType(typeId: 0)
 class Order extends HiveObject {
   @HiveField(0)
@@ -37,6 +36,9 @@ class Order extends HiveObject {
   @HiveField(10)
   String email;
 
+  @HiveField(11)
+  String pickupDate;
+
   Order({
     required this.code,
     required this.expectedDelivery,
@@ -49,5 +51,6 @@ class Order extends HiveObject {
     required this.customerName,
     required this.phone,
     required this.email,
+    required this.pickupDate,
   });
 }

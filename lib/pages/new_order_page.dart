@@ -14,7 +14,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
   final _formKey = GlobalKey<FormState>();
   final OrderApiService _apiService = OrderApiService();
   
-  // Controladores para os campos do formulário
   final TextEditingController _customerNameController = TextEditingController();
   final TextEditingController _customerEmailController = TextEditingController();
   final TextEditingController _customerPhoneController = TextEditingController();
@@ -25,16 +24,16 @@ class _NewOrderPageState extends State<NewOrderPage> {
   
   bool _isSubmitting = false;
   String? _errorMessage;
-  bool _saveToApi = true; // Checkbox para salvar na API
+  bool _saveToApi = true;
 
   @override
   void initState() {
     super.initState();
-    // Preenche datas padrão
+
     final now = DateTime.now();
     final pickupDate = now.add(const Duration(days: 1));
     final deliveryDate = now.add(const Duration(days: 2));
-    
+
     _pickupDateController.text = _formatDate(pickupDate);
     _deliveryDateController.text = _formatDate(deliveryDate);
   }
@@ -64,16 +63,16 @@ class _NewOrderPageState extends State<NewOrderPage> {
     });
 
     try {
-      // Gera um código único para o pedido
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final orderCode = 'PED-NEW-${timestamp.toString().substring(7)}';
 
-      // Cria o objeto Order
+      /// CRIAÇÃO DO PEDIDO CORRETA
       final newOrder = Order(
         code: orderCode,
-        expectedDelivery: _deliveryDateController.text,
+        pickupDate: _pickupDateController.text,          // <-- AGORA VEM CERTO
+        expectedDelivery: _deliveryDateController.text,  // <-- ENTREGA
         pickupAddress: _pickupAddressController.text,
-        pickupLat: -23.5505, // Coordenadas padrão (SP)
+        pickupLat: -23.5505,
         pickupLng: -46.6333,
         deliveryAddress: _deliveryAddressController.text,
         deliveryLat: -23.5616,
@@ -83,31 +82,26 @@ class _NewOrderPageState extends State<NewOrderPage> {
         email: _customerEmailController.text,
       );
 
-      // Salva no banco local
+      /// SALVA LOCALMENTE
       await AppDatabase.instance.addOrder(newOrder);
 
-      // Se marcado, tenta salvar na API também
+      /// TENTA SALVAR NA API (opcional)
       if (_saveToApi) {
         try {
-          // Cria um OrderApiModel para enviar à API
           final apiOrder = OrderApiModel(
-            id: 0, // API vai gerar novo ID
+            id: 0,
             title: 'Pedido $orderCode',
             body: 'Cliente: ${_customerNameController.text}\n'
-                  'Endereço de entrega: ${_deliveryAddressController.text}',
-            userId: 1, // ID de usuário padrão
+                'Endereço de entrega: ${_deliveryAddressController.text}',
+            userId: 1,
           );
-
           await _apiService.createOrder(apiOrder);
         } catch (apiError) {
-          // Não impede o salvamento local se a API falhar
-          print('API Error (não crítico): $apiError');
+          print("API error (ignorado): $apiError");
         }
       }
 
-      // Navega de volta com sucesso
       Navigator.pop(context, newOrder);
-
     } catch (e) {
       setState(() {
         _errorMessage = 'Erro ao criar pedido: $e';
@@ -120,7 +114,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Novo Pedido'),
+        title: const Text("Novo Pedido"),
         backgroundColor: const Color(0xFFF6984A),
         foregroundColor: Colors.white,
         actions: [
@@ -129,7 +123,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
             icon: _isSubmitting
                 ? const CircularProgressIndicator(color: Colors.white)
                 : const Icon(Icons.check),
-            tooltip: 'Salvar',
           ),
         ],
       ),
@@ -145,7 +138,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Título
             const Text(
               'Informações do Cliente',
               style: TextStyle(
@@ -156,7 +148,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
             ),
             const SizedBox(height: 20),
 
-            // Campo: Nome do Cliente
             TextFormField(
               controller: _customerNameController,
               decoration: const InputDecoration(
@@ -166,16 +157,11 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 filled: true,
                 fillColor: Colors.white,
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Digite o nome do cliente';
-                }
-                return null;
-              },
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Digite o nome' : null,
             ),
             const SizedBox(height: 16),
 
-            // Campo: Email
             TextFormField(
               controller: _customerEmailController,
               decoration: const InputDecoration(
@@ -185,20 +171,11 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 filled: true,
                 fillColor: Colors.white,
               ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Digite o email';
-                }
-                if (!value.contains('@')) {
-                  return 'Digite um email válido';
-                }
-                return null;
-              },
+              validator: (value) =>
+                  value == null || !value.contains('@') ? 'Email inválido' : null,
             ),
             const SizedBox(height: 16),
 
-            // Campo: Telefone
             TextFormField(
               controller: _customerPhoneController,
               decoration: const InputDecoration(
@@ -208,13 +185,8 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 filled: true,
                 fillColor: Colors.white,
               ),
-              keyboardType: TextInputType.phone,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Digite o telefone';
-                }
-                return null;
-              },
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Digite o telefone' : null,
             ),
 
             const SizedBox(height: 30),
@@ -228,30 +200,24 @@ class _NewOrderPageState extends State<NewOrderPage> {
             ),
             const SizedBox(height: 20),
 
-            // Campo: Endereço de Retirada
             TextFormField(
               controller: _pickupAddressController,
+              maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'Endereço de retirada *',
                 prefixIcon: Icon(Icons.location_on, color: Color(0xFFF6984A)),
                 border: OutlineInputBorder(),
                 filled: true,
                 fillColor: Colors.white,
-                hintText: 'Rua, número, bairro, cidade',
               ),
-              maxLines: 2,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Digite o endereço de retirada';
-                }
-                return null;
-              },
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Digite o endereço' : null,
             ),
             const SizedBox(height: 16),
 
-            // Campo: Data de Retirada
             TextFormField(
               controller: _pickupDateController,
+              readOnly: true,
               decoration: const InputDecoration(
                 labelText: 'Data de retirada *',
                 prefixIcon: Icon(Icons.calendar_today, color: Color(0xFFF6984A)),
@@ -259,41 +225,28 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 filled: true,
                 fillColor: Colors.white,
               ),
-              readOnly: true,
               onTap: () => _selectDate(context, _pickupDateController),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Selecione a data de retirada';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 16),
 
-            // Campo: Endereço de Entrega
             TextFormField(
               controller: _deliveryAddressController,
+              maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'Endereço de entrega *',
                 prefixIcon: Icon(Icons.flag, color: Color(0xFFF6984A)),
                 border: OutlineInputBorder(),
                 filled: true,
                 fillColor: Colors.white,
-                hintText: 'Rua, número, bairro, cidade',
               ),
-              maxLines: 2,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Digite o endereço de entrega';
-                }
-                return null;
-              },
+              validator: (value) =>
+                  value == null || value.isEmpty ? 'Digite o endereço' : null,
             ),
             const SizedBox(height: 16),
 
-            // Campo: Data de Entrega
             TextFormField(
               controller: _deliveryDateController,
+              readOnly: true,
               decoration: const InputDecoration(
                 labelText: 'Data de entrega *',
                 prefixIcon: Icon(Icons.calendar_today, color: Color(0xFFF6984A)),
@@ -301,67 +254,28 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 filled: true,
                 fillColor: Colors.white,
               ),
-              readOnly: true,
               onTap: () => _selectDate(context, _deliveryDateController),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Selecione a data de entrega';
-                }
-                return null;
-              },
             ),
-
             const SizedBox(height: 24),
 
-            // Checkbox para salvar na API
             Row(
               children: [
                 Checkbox(
                   value: _saveToApi,
-                  onChanged: (value) {
-                    setState(() {
-                      _saveToApi = value ?? true;
-                    });
-                  },
                   activeColor: const Color(0xFFF6984A),
+                  onChanged: (v) => setState(() => _saveToApi = v ?? true),
                 ),
-                const Expanded(
-                  child: Text(
-                    'Salvar também na nuvem (recomendado)',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                ),
+                const Text("Salvar pedido na API"),
               ],
             ),
 
             const SizedBox(height: 24),
 
-            // Mensagem de erro
             if (_errorMessage != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: Colors.red),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
 
             const SizedBox(height: 24),
 
-            // Botão de salvar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -370,40 +284,12 @@ class _NewOrderPageState extends State<NewOrderPage> {
                   backgroundColor: const Color(0xFFF6984A),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                 ),
                 child: _isSubmitting
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Salvando...'),
-                        ],
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.check_circle_outline),
-                          SizedBox(width: 8),
-                          Text(
-                            'Criar Pedido',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text("Criar Pedido"),
               ),
             ),
-
             const SizedBox(height: 40),
           ],
         ),
@@ -413,22 +299,19 @@ class _NewOrderPageState extends State<NewOrderPage> {
 
   Future<void> _selectDate(
       BuildContext context, TextEditingController controller) async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFF6984A),
-              onPrimary: Colors.white,
-            ),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: Color(0xFFF6984A),
           ),
-          child: child!,
-        );
-      },
+        ),
+        child: child!,
+      ),
     );
 
     if (picked != null) {
