@@ -14,7 +14,7 @@
 ## 📥 Passo 1: Clonar o Repositório
 ```bash
 https://github.com/Davi-France/naporta-mobile.git
-cd desafio_mobile
+cd naportamobile
 ```
 
 ## 🔧 Passo 2: Instalar Dependências
