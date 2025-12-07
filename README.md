@@ -13,7 +13,7 @@
 
 ## 📥 Passo 1: Clonar o Repositório
 ```bash
-git clone https://github.com/seu-usuario/desafio_mobile.git
+https://github.com/Davi-France/naporta-mobile.git
 cd desafio_mobile
 ```
 
