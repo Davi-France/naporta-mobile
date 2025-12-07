@@ -99,3 +99,22 @@ Para testar rapidamente:
 ```bash
 flutter run -d chrome
 ```
+
+# 💻 Sobre o Desenvolvimento
+Desenvolvi este projeto diretamente pelo VSCODE utilizando flutter run -d chrome para testes, pois enfrentei dificuldades com virtualização em minha máquina. Apesar disso, o aplicativo foi cuidadosamente desenvolvido para funcionar em ambas as plataformas (web e mobile), mantendo toda a funcionalidade offline-first e persistência de dados.
+
+## 🗺️ Escolha do Mapa
+No desenvolvimento, precisei optar por uma solução de mapas gratuita - OpenStreetMap via Flutter Map - em vez de APIs como Google Maps ou MapBox, que exigem custos para uso em produção. Essa decisão técnica permitiu manter o projeto funcional sem incorrer em despesas, enquanto ainda oferece uma experiência de mapa completa com rotas e marcadores.
+
+## 🛠️ Ferramentas e Aprendizado
+Gostei muito do desafio e foi uma excelente oportunidade para aprimorar meus conhecimentos em Flutter, uma tecnologia que considero incrível e tenho grande vontade de me aprofundar. Durante o desenvolvimento:
+- Utilizei bibliotecas especializadas como Hive, Flutter Map e HTTP para implementar funcionalidades específicas
+- Pesquisei extensivamente com auxílio de IAs para solucionar desafios técnicos e otimizar o código
+- Aprendi na prática conceitos importantes como offline-first, paginação infinita e integração de mapas
+
+##🎯 Desafios Superados
+- Implementar scroll infinito eficiente com cache local
+- Criar sistema de rota no mapa sem APIs pagas
+- Garantir funcionamento offline com sincronização inteligente
+- Manter código limpo e organizado mesmo sendo um projeto complexo
+Este projeto representa não apenas a entrega de um desafio técnico, mas meu compromisso em aprender e evoluir com uma tecnologia que admiro profundamente. Cada funcionalidade implementada foi um passo a mais na minha jornada de dominar o ecossistema Flutter! 🚀
