@@ -12,24 +12,32 @@
 - Dart 3.9.2 e DevTools 2.48.0, garantindo compatibilidade com essa configuração.
 
 ## 📥 Passo 1: Clonar o Repositório
+```bash
 git clone https://github.com/seu-usuario/desafio_mobile.git
 cd desafio_mobile
+```
 
 ## 🔧 Passo 2: Instalar Dependências
+```bash
 flutter pub get
+```
 
 ## 🏗️ Passo 3: Gerar Código do Banco de Dados (Hive)
+```bash
 flutter packages pub run build_runner build --delete-conflicting-outputs
+```
 
 ## ▶️ Passo 4: Rodar a Aplicação
 ✔️ Opção Recomendada: Navegador (Chrome)
+```bash
 flutter run -d chrome
+```
 
-## 📱 Android
+ou
+
+```bash
 flutter run -d emulator
-
-## 🍏 iOS
-flutter run -d iPhone
+```
 
 ## ✅ Teste Rápido
 
@@ -52,22 +60,30 @@ Configurações utilizadas:
 ## 🛠️ Problemas Comuns e Soluções
 
 ###❌ HiveError: Box not found
+```bash
 flutter clean
 flutter pub get
 flutter packages pub run build_runner build --delete-conflicting-outputs
+```
 
 ###❌ App não abre no navegador
+```bash
 flutter config --enable-web
+```
 
 ###❌ Dependências conflitantes
+```bash
 flutter pub upgrade
+```
 
 ## 📱 Testando em Diferentes Plataformas
 - Web (TESTADO E FUNCIONANDO)
 - flutter run -d chrome
 
 ## Android
+```bash
 flutter run -d (emulador que voce tivr instalado)
+```
 
 
 ## 🎨 Por Que Desenvolvi na Web?
@@ -80,5 +96,6 @@ flutter run -d (emulador que voce tivr instalado)
 ## 🚀 Dica Final
 
 Para testar rapidamente:
-
+```bash
 flutter run -d chrome
+```
