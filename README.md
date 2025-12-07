@@ -112,7 +112,7 @@ Gostei muito do desafio e foi uma excelente oportunidade para aprimorar meus con
 - Pesquisei extensivamente com auxílio de IAs para solucionar desafios técnicos e otimizar o código
 - Aprendi na prática conceitos importantes como offline-first, paginação infinita e integração de mapas
 
-##🎯 Desafios Superados
+## 🎯 Desafios Superados
 - Implementar scroll infinito eficiente com cache local
 - Criar sistema de rota no mapa sem APIs pagas
 - Garantir funcionamento offline com sincronização inteligente
