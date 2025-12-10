@@ -83,7 +83,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
 
       await AppDatabase.instance.addOrder(newOrder);
 
-      /// TENTA SALVAR NA API (opcional)
       if (_saveToApi) {
         try {
           final apiOrder = OrderApiModel(
