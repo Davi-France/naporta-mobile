@@ -66,11 +66,10 @@ class _NewOrderPageState extends State<NewOrderPage> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final orderCode = 'PED-NEW-${timestamp.toString().substring(7)}';
 
-      /// CRIAÇÃO DO PEDIDO CORRETA
       final newOrder = Order(
         code: orderCode,
-        pickupDate: _pickupDateController.text,          // <-- AGORA VEM CERTO
-        expectedDelivery: _deliveryDateController.text,  // <-- ENTREGA
+        pickupDate: _pickupDateController.text,          
+        expectedDelivery: _deliveryDateController.text,
         pickupAddress: _pickupAddressController.text,
         pickupLat: -23.5505,
         pickupLng: -46.6333,
@@ -82,7 +81,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
         email: _customerEmailController.text,
       );
 
-      /// SALVA LOCALMENTE
       await AppDatabase.instance.addOrder(newOrder);
 
       /// TENTA SALVAR NA API (opcional)
